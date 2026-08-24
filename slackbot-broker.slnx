@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SlackBotBroker.Broker/SlackBotBroker.Broker.csproj" />
+    <Project Path="src/SlackBotBroker.Executors/SlackBotBroker.Executors.csproj" />
+    <Project Path="src/SlackBotBroker.Protocol/SlackBotBroker.Protocol.csproj" />
+    <Project Path="src/SlackBotBroker.Worker/SlackBotBroker.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SlackBotBroker.Broker.Tests/SlackBotBroker.Broker.Tests.csproj" />
+    <Project Path="tests/SlackBotBroker.Executors.Tests/SlackBotBroker.Executors.Tests.csproj" />
+    <Project Path="tests/SlackBotBroker.IntegrationTests/SlackBotBroker.IntegrationTests.csproj" />
+    <Project Path="tests/SlackBotBroker.Protocol.Tests/SlackBotBroker.Protocol.Tests.csproj" />
+    <Project Path="tests/SlackBotBroker.Worker.Tests/SlackBotBroker.Worker.Tests.csproj" />
+  </Folder>
+</Solution>
