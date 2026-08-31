@@ -42,23 +42,23 @@
 
 ## 5. Broker Scheduling (`broker-scheduling`)
 
-- [ ] 5.1 Implement the bounded `Channel<ExecutionRequest>`-backed admission queue with configurable capacity and verify a unit test admits a request while capacity remains
-- [ ] 5.2 Implement `TryWrite`-based admission that returns an explicit busy/retry rejection when the queue is full, and verify a unit test fills the queue to capacity and asserts the next submission is rejected and not enqueued
-- [ ] 5.3 Verify a unit test that two admitted requests are read from the queue and dispatched in FIFO submission order
-- [ ] 5.4 Implement the v1 single-global-execution default (subsequent admitted requests wait for the active one to reach a terminal outcome) and verify a unit test confirms a second request is not forwarded to the worker until the first's terminal outcome is delivered
-- [ ] 5.5 Implement removal of a request's active in-memory state once its terminal outcome is delivered and verify a unit test asserts the request is absent from active state after delivery
+- [x] 5.1 Implement the bounded `Channel<ExecutionRequest>`-backed admission queue with configurable capacity and verify a unit test admits a request while capacity remains
+- [x] 5.2 Implement `TryWrite`-based admission that returns an explicit busy/retry rejection when the queue is full, and verify a unit test fills the queue to capacity and asserts the next submission is rejected and not enqueued
+- [x] 5.3 Verify a unit test that two admitted requests are read from the queue and dispatched in FIFO submission order
+- [x] 5.4 Implement the v1 single-global-execution default (subsequent admitted requests wait for the active one to reach a terminal outcome) and verify a unit test confirms a second request is not forwarded to the worker until the first's terminal outcome is delivered — `ExecutionScheduler.RunAsync` takes a `dispatch` delegate expected to return only once its request is terminal; the real delegate (talking to the worker over IPC) is supplied in host wiring (task 7.2)
+- [x] 5.5 Implement removal of a request's active in-memory state once its terminal outcome is delivered and verify a unit test asserts the request is absent from active state after delivery
 
 ## 6. Slack Gateway (`slack-gateway`)
 
-- [ ] 6.1 Define a narrow `ISlackClient`-style seam (receive command, send message to channel/thread) and a hand-written fake implementation for tests; verify the project builds against the fake with no real Slack SDK call in tests
-- [ ] 6.2 Wire the Socket Mode connection behind the `ISlackClient` seam (no inbound HTTP listener) and verify a unit test using the fake confirms a command is received purely over the seam
-- [ ] 6.3 Implement caller authorization against a configured allowlist and verify a unit test confirms an unauthorized user's command is rejected and no `ExecutionRequest` is created
-- [ ] 6.4 Implement executor-key and operation allowlist validation and verify unit tests cover an unknown executor key and a disallowed operation, both rejected before dispatch
-- [ ] 6.5 Implement alias-only target resolution (reject raw paths/endpoints) and verify a unit test confirms a raw path supplied instead of a configured alias is rejected
-- [ ] 6.6 Implement thread-scoped delivery of progress/results using the request's `SlackChannelId`/`SlackThreadTs` and verify a unit test confirms a progress update is posted to the originating thread and not elsewhere
-- [ ] 6.7 Implement user-visible failure reporting for queue-full, IPC-unavailable, executor-unavailable, timeout, and cancellation outcomes, each distinguishable, and verify unit tests cover the queue-full and IPC-unavailable cases
-- [ ] 6.8 Implement the confirmation workflow for operations flagged high-impact and verify unit tests cover both withholding dispatch pending confirmation and dispatching after explicit confirmation
-- [ ] 6.9 Implement configurable sensitive-pattern redaction applied before any content is posted to Slack and verify a unit test confirms a token-shaped pattern in executor output is redacted before delivery
+- [x] 6.1 Define a narrow `ISlackClient`-style seam (receive command, send message to channel/thread) and a hand-written fake implementation for tests; verify the project builds against the fake with no real Slack SDK call in tests
+- [x] 6.2 Wire the Socket Mode connection behind the `ISlackClient` seam (no inbound HTTP listener) and verify a unit test using the fake confirms a command is received purely over the seam
+- [x] 6.3 Implement caller authorization against a configured allowlist and verify a unit test confirms an unauthorized user's command is rejected and no `ExecutionRequest` is created
+- [x] 6.4 Implement executor-key and operation allowlist validation and verify unit tests cover an unknown executor key and a disallowed operation, both rejected before dispatch
+- [x] 6.5 Implement alias-only target resolution (reject raw paths/endpoints) and verify a unit test confirms a raw path supplied instead of a configured alias is rejected
+- [x] 6.6 Implement thread-scoped delivery of progress/results using the request's `SlackChannelId`/`SlackThreadTs` and verify a unit test confirms a progress update is posted to the originating thread and not elsewhere — `SlackGateway` implements a new `IWorkerEventListener` (the broker-side counterpart to the worker's `IExecutionEventSink`), keyed by `RequestId` against a routing map populated at admission
+- [x] 6.7 Implement user-visible failure reporting for queue-full, IPC-unavailable, executor-unavailable, timeout, and cancellation outcomes, each distinguishable, and verify unit tests cover the queue-full and IPC-unavailable cases — worker-connectivity is checked via a new `IWorkerConnectionState` seam (real implementation wired to IPC in task 7.2); queue-full comes directly from `ExecutionScheduler.TryAdmit`
+- [x] 6.8 Implement the confirmation workflow for operations flagged high-impact and verify unit tests cover both withholding dispatch pending confirmation and dispatching after explicit confirmation — the eventual `ExecutionRequestPayload.RequestId` doubles as the confirmation id, so no separate token concept was needed
+- [x] 6.9 Implement configurable sensitive-pattern redaction applied before any content is posted to Slack and verify a unit test confirms a token-shaped pattern in executor output is redacted before delivery
 
 ## 7. Host Wiring
 

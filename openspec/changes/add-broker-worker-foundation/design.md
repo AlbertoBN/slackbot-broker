@@ -114,6 +114,22 @@ implementation, rather than adding a mocking library (e.g., Moq). The seam is na
 message to channel/thread, receive command) and a hand-written fake keeps the test project
 dependency-light; revisit only if test setups become unwieldy.
 
+### Slack gateway composition
+`SlackGateway` depends directly on the concrete `ExecutionScheduler` (both already live in
+`SlackBotBroker.Broker`) rather than a further abstraction — `TryAdmit` returning `false` is
+exactly the broker-scheduling-defined queue-full signal the gateway needs to surface. It gains
+two more narrow seams: `IWorkerConnectionState` (`bool IsConnected`) so "IPC unavailable" is
+distinguishable from "queue full" without real IPC existing yet, and `IWorkerEventListener`
+(`AcceptedAsync`/`ProgressAsync`/`CompletedAsync`/`FailedAsync`/`CancelledAsync`) — the
+broker-side mirror of the worker's `IExecutionEventSink` — so `SlackGateway` can be handed
+lifecycle events and route them to the right channel/thread via an internal `RequestId` → route
+map populated at admission. Both seams get real implementations wired to the actual IPC client
+in host wiring (task group 7); until then, tests drive them directly.
+
+A high-impact command's own future `ExecutionRequestPayload.RequestId` (generated up front, at
+validation time) doubles as its confirmation id — the user replies referencing that id, and on
+confirmation it becomes the real request's id. This avoids a second token/correlation concept.
+
 ## Risks / Trade-offs
 
 - [Risk] Single global execution (per `broker-scheduling`) limits throughput once real executors
