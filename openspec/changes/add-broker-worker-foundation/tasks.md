@@ -21,24 +21,24 @@
 
 ## 3. Executor Framework (`executor-framework`)
 
-- [ ] 3.1 Define the `IExecutor` contract (`ExecutorKey`, `Capabilities`, `ConnectAsync`, `DisconnectAsync`, `MessageAsync`) and supporting types (`ExecutorCapabilities`, `ExecutorConnectionContext`/`Result`, `ExecutorDisconnectContext`, `ExecutorMessageContext`, `ExecutorProgress`, `ExecutorMessageResult`) and verify the project builds with no implementation yet
-- [ ] 3.2 Define the executor lifecycle state enum (`Disconnected`, `Connecting`, `Ready`, `Busy`, `Degraded`, `Faulted`, `Disconnecting`) and verify a unit test exercises each transition on a minimal test double
-- [ ] 3.3 Implement `IExecutorRegistry` resolving executors by key and rejecting unknown/disabled keys, and verify unit tests cover resolve-known, resolve-unknown, and resolve-disabled cases
-- [ ] 3.4 Implement `MockExecutor` with configurable outcomes (success, failure, timeout, cancellation) and a configurable ordered progress sequence, and verify unit tests cover each configured outcome
-- [ ] 3.5 Verify a unit test that `MessageAsync` on any executor rejects an operation not declared in `Capabilities` before invoking executor-specific logic
-- [ ] 3.6 Verify a unit test that `MessageAsync` respects a supplied timeout and returns a normalized timeout outcome, and another that a triggered `CancellationToken` returns a normalized cancelled outcome, using `MockExecutor`
-- [ ] 3.7 Verify a unit test that `ConnectAsync` is idempotent when already `Ready`, and that `DisconnectAsync` is safe after a failed/partial connect and does not terminate an externally-managed executor's underlying process, using `MockExecutor` configured for each case
-- [ ] 3.8 Wire an `Executors:Mock:Enabled` configuration flag that gates whether `MockExecutor` is registered in `IExecutorRegistry`, and verify a unit test confirms it is absent from the registry when the flag is unset/false
+- [x] 3.1 Define the `IExecutor` contract (`ExecutorKey`, `Capabilities`, `ConnectAsync`, `DisconnectAsync`, `MessageAsync`) and supporting types (`ExecutorCapabilities`, `ExecutorConnectionContext`/`Result`, `ExecutorDisconnectContext`, `ExecutorMessageContext`, `ExecutorProgress`, `ExecutorMessageResult`) and verify the project builds with no implementation yet
+- [x] 3.2 Define the executor lifecycle state enum (`Disconnected`, `Connecting`, `Ready`, `Busy`, `Degraded`, `Faulted`, `Disconnecting`) and verify a unit test exercises each transition on a minimal test double
+- [x] 3.3 Implement `IExecutorRegistry` resolving executors by key and rejecting unknown/disabled keys, and verify unit tests cover resolve-known, resolve-unknown, and resolve-disabled cases
+- [x] 3.4 Implement `MockExecutor` with configurable outcomes (success, failure, timeout, cancellation) and a configurable ordered progress sequence, and verify unit tests cover each configured outcome
+- [x] 3.5 Verify a unit test that `MessageAsync` on any executor rejects an operation not declared in `Capabilities` before invoking executor-specific logic
+- [x] 3.6 Verify a unit test that `MessageAsync` respects a supplied timeout and returns a normalized timeout outcome, and another that a triggered `CancellationToken` returns a normalized cancelled outcome, using `MockExecutor`
+- [x] 3.7 Verify a unit test that `ConnectAsync` is idempotent when already `Ready`, and that `DisconnectAsync` is safe after a failed/partial connect and does not terminate an externally-managed executor's underlying process, using `MockExecutor` configured for each case
+- [x] 3.8 Wire an `Executors:Mock:Enabled` configuration flag that gates whether `MockExecutor` is registered in `IExecutorRegistry`, and verify a unit test confirms it is absent from the registry when the flag is unset/false — implemented as `ExecutorRegistryFactory.Create(registrations, includeMockExecutor)`; the actual `Executors:Mock:Enabled` config-key binding happens when the worker host is wired in task 7.3
 
 ## 4. Worker Dispatch (`worker-dispatch`)
 
-- [ ] 4.1 Implement `IExecutionDispatcher` and `IExecutionEventSink` and verify the project builds with a test double sink
-- [ ] 4.2 Implement executor resolution on `DispatchAsync` (resolve via registry before any other action) and verify a unit test confirms an unregistered executor key produces a failure event without invoking any executor
-- [ ] 4.3 Implement admission acknowledgement (`AcceptedAsync` on valid request, `FailedAsync` on invalid request, before execution begins) and verify unit tests cover both paths using `MockExecutor`
-- [ ] 4.4 Implement progress and terminal event forwarding from the executor to the event sink, preserving order and correlation, and verify a unit test using `MockExecutor`'s configured progress sequence asserts events arrive in order and the terminal event is emitted exactly once
-- [ ] 4.5 Implement cancellation propagation (`CancelExecution` → executor cancellation token → `CancelledAsync`) and verify unit tests cover cancelling an in-flight execution and cancelling an already-terminal execution (no duplicate terminal event)
-- [ ] 4.6 Implement sequential execution per target alias (no two in-flight executions against the same target) and verify a unit test with two requests sharing a target alias and `MockExecutor` confirms the second does not start until the first reaches a terminal outcome
-- [ ] 4.7 Implement executor status reporting (current lifecycle state and capabilities, independent of any single execution) and verify a unit test asserts the reported state is `Busy` while a message is in flight
+- [x] 4.1 Implement `IExecutionDispatcher` and `IExecutionEventSink` and verify the project builds with a test double sink — both are expressed in terms of the `execution-protocol` payload types (`ExecutionRequestPayload`, `ExecutionAcceptedPayload`, ...) rather than inventing parallel domain types, since the dispatcher's job is exactly to produce those wire-shaped events
+- [x] 4.2 Implement executor resolution on `DispatchAsync` (resolve via registry before any other action) and verify a unit test confirms an unregistered executor key produces a failure event without invoking any executor
+- [x] 4.3 Implement admission acknowledgement (`AcceptedAsync` on valid request, `FailedAsync` on invalid request, before execution begins) and verify unit tests cover both paths using `MockExecutor`
+- [x] 4.4 Implement progress and terminal event forwarding from the executor to the event sink, preserving order and correlation, and verify a unit test using `MockExecutor`'s configured progress sequence asserts events arrive in order and the terminal event is emitted exactly once
+- [x] 4.5 Implement cancellation propagation (`CancelExecution` → executor cancellation token → `CancelledAsync`) and verify unit tests cover cancelling an in-flight execution and cancelling an already-terminal execution (no duplicate terminal event) — `IExecutionDispatcher.TryCancel(requestId, reason)` cancels a per-request linked `CancellationTokenSource`; the actual `CancelExecution` protocol message is wired to this call in host wiring (task 7.1)
+- [x] 4.6 Implement sequential execution per target alias (no two in-flight executions against the same target) and verify a unit test with two requests sharing a target alias and `MockExecutor` confirms the second does not start until the first reaches a terminal outcome
+- [x] 4.7 Implement executor status reporting (current lifecycle state and capabilities, independent of any single execution) and verify a unit test asserts the reported state is `Busy` while a message is in flight — no new component needed: `IExecutorRegistry.TryGet` already exposes the live `IExecutor` whose `State`/`Capabilities` are read directly
 
 ## 5. Broker Scheduling (`broker-scheduling`)
 
