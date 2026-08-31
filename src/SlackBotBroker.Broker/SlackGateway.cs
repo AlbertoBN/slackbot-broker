@@ -35,36 +35,36 @@ public sealed class SlackGateway : IWorkerEventListener
         }
     }
 
-    public async Task HandleCommandAsync(SlackCommand command, CancellationToken cancellationToken)
+    /// <summary>Handles one Slack interaction. Returns the request id assigned once one exists (admitted, or pending confirmation) — null when the command was rejected outright or referenced an unknown confirmation.</summary>
+    public async Task<Guid?> HandleCommandAsync(SlackCommand command, CancellationToken cancellationToken)
     {
         if (command.ConfirmsRequestId is { } confirmsRequestId)
         {
-            await HandleConfirmationAsync(confirmsRequestId, command, cancellationToken).ConfigureAwait(false);
-            return;
+            return await HandleConfirmationAsync(confirmsRequestId, command, cancellationToken).ConfigureAwait(false);
         }
 
         if (!_policy.AuthorizedUserIds.Contains(command.UserId))
         {
             await SendAsync(command.ChannelId, command.ThreadTs, "You are not authorized to run commands.", cancellationToken).ConfigureAwait(false);
-            return;
+            return null;
         }
 
         if (command.ExecutorKey is null || !_policy.Executors.TryGetValue(command.ExecutorKey, out var executorPolicy))
         {
             await SendAsync(command.ChannelId, command.ThreadTs, $"Unknown executor '{command.ExecutorKey}'.", cancellationToken).ConfigureAwait(false);
-            return;
+            return null;
         }
 
         if (command.Operation is null || !executorPolicy.AllowedOperations.Contains(command.Operation))
         {
             await SendAsync(command.ChannelId, command.ThreadTs, $"Operation '{command.Operation}' is not allowed for executor '{command.ExecutorKey}'.", cancellationToken).ConfigureAwait(false);
-            return;
+            return null;
         }
 
         if (command.TargetAlias is { Length: > 0 } alias && !_policy.AllowedTargetAliases.Contains(alias))
         {
             await SendAsync(command.ChannelId, command.ThreadTs, $"Unknown target alias '{alias}'.", cancellationToken).ConfigureAwait(false);
-            return;
+            return null;
         }
 
         var requestId = Guid.NewGuid();
@@ -77,21 +77,23 @@ public sealed class SlackGateway : IWorkerEventListener
                 command.ThreadTs,
                 $"'{command.Operation}' on '{command.ExecutorKey}' is a high-impact action. Reply to confirm (confirmation id: {requestId}).",
                 cancellationToken).ConfigureAwait(false);
-            return;
+            return requestId;
         }
 
         await AdmitAsync(requestId, command, cancellationToken).ConfigureAwait(false);
+        return requestId;
     }
 
-    private async Task HandleConfirmationAsync(Guid requestId, SlackCommand confirmation, CancellationToken cancellationToken)
+    private async Task<Guid?> HandleConfirmationAsync(Guid requestId, SlackCommand confirmation, CancellationToken cancellationToken)
     {
         if (!_pendingConfirmations.TryRemove(requestId, out var pendingCommand))
         {
             await SendAsync(confirmation.ChannelId, confirmation.ThreadTs, "No pending confirmation found for that id.", cancellationToken).ConfigureAwait(false);
-            return;
+            return null;
         }
 
         await AdmitAsync(requestId, pendingCommand, cancellationToken).ConfigureAwait(false);
+        return requestId;
     }
 
     private async Task AdmitAsync(Guid requestId, SlackCommand command, CancellationToken cancellationToken)

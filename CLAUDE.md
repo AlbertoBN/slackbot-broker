@@ -4,11 +4,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-This repository is early-stage. Solution/project scaffolding exists (see Commands and Solution
-layout below) but almost no behavior is implemented yet — see the in-progress OpenSpec change
-`add-broker-worker-foundation` for what's built vs. pending. The real design lives in
-[docs/slack-broker-prd-v2.md](docs/slack-broker-prd-v2.md) — read it before making
-architectural decisions not yet covered by an OpenSpec change.
+The `add-broker-worker-foundation` OpenSpec change (54/54 tasks) is complete: broker and worker
+run as separate processes over a real Unix domain socket, with the full pipeline (Slack gateway →
+scheduler → IPC → dispatcher → `MockExecutor` → IPC → Slack thread) working end-to-end — see
+`openspec/changes/add-broker-worker-foundation/` for the specs/design behind it. No concrete
+`IExecutor` (Claude CLI, Git, gRPC, ...) exists yet — that's deliberately deferred to a future
+change; `MockExecutor` stands in for now. The real design lives in
+[docs/slack-broker-prd-v2.md](docs/slack-broker-prd-v2.md) — read it before making architectural
+decisions not yet covered by an OpenSpec change. Check `openspec/changes/` for what's currently
+in progress before assuming something is unimplemented.
+
+## Running locally
+
+```
+dotnet run --project src/SlackBotBroker.Worker   # start first
+dotnet run --project src/SlackBotBroker.Broker    # start second
+```
+
+Both read config from environment variables (double-underscore for nesting, e.g.
+`Worker__SocketPath`). Useful overrides:
+- `Worker__SocketPath` — set the same value for both processes; defaults to
+  `<temp>/slackbot-broker/worker.sock`.
+- `Executors__Mock__Enabled=true` (worker) — registers `MockExecutor` so there's something for
+  the worker to actually dispatch to.
+- `SlackClient__Dev__SeedCommand__Enabled=true` (broker) — since there's no real Slack Socket
+  Mode client yet, this makes `ConsoleSlackClient` seed one hardcoded `mock`/`echo` command so
+  the pipeline can be exercised without Slack; every message the gateway would send to Slack is
+  logged to the console instead.
 
 ## Commands
 
@@ -48,7 +70,7 @@ an OpenSpec change before implementing non-trivial functionality, rather than ed
 directly. Check `openspec/changes/` for in-progress changes and their `tasks.md` before assuming
 something is unimplemented.
 
-## Architecture (per the PRD — target design, not yet implemented)
+## Architecture (per the PRD; the foundation below is implemented — see Project status)
 
 The system is a Slack-controlled broker for running approved local applications (CLIs, local
 gRPC services) on a single development machine, without RabbitMQ or any distributed queue.

@@ -62,19 +62,19 @@
 
 ## 7. Host Wiring
 
-- [ ] 7.1 Wire `SlackBotBroker.Worker`'s host to listen on a configured Unix domain socket path, accept the broker's connection, and route messages to `IExecutionDispatcher`; verify manual run: start the worker and confirm it listens on the configured path
-- [ ] 7.2 Wire the Broker host to connect to the worker's Unix domain socket, submit admitted requests, and forward worker events to `ISlackClient`; verify manual run: start worker then broker and confirm the IPC connection is established (e.g. via a successful `HealthPing`/`HealthPong` exchange)
-- [ ] 7.3 Wire `Executors:Mock:Enabled` through worker configuration so a local/dev run can exercise the full path with `MockExecutor`; verify manual run: submit a fake Slack command end-to-end and observe an `ExecutionCompleted` event reach the broker
+- [x] 7.1 Wire `SlackBotBroker.Worker`'s host to listen on a configured Unix domain socket path, accept the broker's connection, and route messages to `IExecutionDispatcher`; verify manual run: start the worker and confirm it listens on the configured path — verified: `worker.sock` created as an actual socket file at the configured (env-overridden) path
+- [x] 7.2 Wire the Broker host to connect to the worker's Unix domain socket, submit admitted requests, and forward worker events to `ISlackClient`; verify manual run: start worker then broker and confirm the IPC connection is established (e.g. via a successful `HealthPing`/`HealthPong` exchange) — verified: broker logged "Broker connected to worker." then "Received HealthPong from worker."
+- [x] 7.3 Wire `Executors:Mock:Enabled` through worker configuration so a local/dev run can exercise the full path with `MockExecutor`; verify manual run: submit a fake Slack command end-to-end and observe an `ExecutionCompleted` event reach the broker — verified via a new opt-in `SlackClient:Dev:SeedCommand:Enabled` flag driving `ConsoleSlackClient`: broker logged "Request accepted." then "mock executor completed" in the originating (seeded) thread
 
 ## 8. Integration Tests
 
-- [ ] 8.1 In `SlackBotBroker.IntegrationTests`, start a real worker host and broker-side IPC client over a temp-path Unix domain socket and verify a `HealthPing`/`HealthPong` round-trip succeeds
-- [ ] 8.2 Verify an end-to-end integration test: a fake Slack command drives the broker's scheduler → IPC → worker dispatcher → `MockExecutor` (configured for success) → back through IPC → and asserts a completed result reaches the fake `ISlackClient` in the originating thread
-- [ ] 8.3 Verify an end-to-end integration test covering cancellation: submit a request against a `MockExecutor` configured to hang, send a cancel, and assert a cancelled result reaches the fake `ISlackClient`
-- [ ] 8.4 Verify an end-to-end integration test covering queue-full: fill the broker's bounded queue and assert the next Slack command receives a busy/retry response without reaching the worker
-- [ ] 8.5 Verify an end-to-end integration test covering worker unavailability: stop the worker process/listener and assert the broker surfaces an IPC-unavailable message rather than hanging or crashing
+- [x] 8.1 In `SlackBotBroker.IntegrationTests`, start a real worker host and broker-side IPC client over a temp-path Unix domain socket and verify a `HealthPing`/`HealthPong` round-trip succeeds — asserted by staying connected across a window well past the (test-shortened) pong window, which only holds if pongs are genuinely arriving
+- [x] 8.2 Verify an end-to-end integration test: a fake Slack command drives the broker's scheduler → IPC → worker dispatcher → `MockExecutor` (configured for success) → back through IPC → and asserts a completed result reaches the fake `ISlackClient` in the originating thread
+- [x] 8.3 Verify an end-to-end integration test covering cancellation: submit a request against a `MockExecutor` configured to hang, send a cancel, and assert a cancelled result reaches the fake `ISlackClient` — required adding `IpcWorkerConnection.RequestCancellationAsync` (broker→worker `CancelExecution` send), which host wiring hadn't actually built yet despite `IExecutionDispatcher.TryCancel` (task 4.5) being ready to receive it; also changed `SlackGateway.HandleCommandAsync` to return the assigned `Guid?` (backward compatible — existing callers already discarded the result) so a test can learn the id to cancel
+- [x] 8.4 Verify an end-to-end integration test covering queue-full: fill the broker's bounded queue and assert the next Slack command receives a busy/retry response without reaching the worker
+- [x] 8.5 Verify an end-to-end integration test covering worker unavailability: stop the worker process/listener and assert the broker surfaces an IPC-unavailable message rather than hanging or crashing
 
 ## 9. Final Verification
 
-- [ ] 9.1 Run `dotnet test` across the full solution and verify all tests pass
-- [ ] 9.2 Run `openspec validate add-broker-worker-foundation --strict` and verify it reports no errors
+- [x] 9.1 Run `dotnet test` across the full solution and verify all tests pass — 98/98 passing (33 Protocol, 23 Broker, 25 Executors, 12 Worker, 5 Integration)
+- [x] 9.2 Run `openspec validate add-broker-worker-foundation --strict` and verify it reports no errors

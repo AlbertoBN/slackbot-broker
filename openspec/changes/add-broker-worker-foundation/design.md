@@ -130,6 +130,42 @@ A high-impact command's own future `ExecutionRequestPayload.RequestId` (generate
 validation time) doubles as its confirmation id — the user replies referencing that id, and on
 confirmation it becomes the real request's id. This avoids a second token/correlation concept.
 
+### Host wiring
+`IpcWorkerConnection` (broker) and `WorkerIpcServer` (worker) are plain classes constructed and
+run directly from each host's `Program.cs` — no `Microsoft.Extensions.Hosting`/DI container.
+Configuration is read once via `Microsoft.Extensions.Configuration` (in-memory defaults +
+environment variable overrides, colon/double-underscore keys — no `appsettings.json`, since
+nothing here needs richer layering yet). This keeps two straightforward console hosts lean;
+revisit only if lifetime management or multiple background services make manual wiring unwieldy.
+
+`SlackGateway` and `IpcWorkerConnection` depend on each other (the gateway needs the connection's
+`IsConnected`/`SubmitAsync`; the connection needs somewhere to forward events). Broken by making
+`IpcWorkerConnection.EventListener` a settable property assigned after both are constructed,
+rather than a constructor-injected dependency.
+
+Since the real Slack Socket Mode client is still an Open Question (deferred), the Broker host's
+default `ISlackClient` is `ConsoleSlackClient`: it logs every outgoing message to the console and,
+behind an opt-in `SlackClient:Dev:SeedCommand:Enabled` flag, yields one hardcoded command so the
+full pipeline can be exercised locally. This is how tasks 7.2/7.3's manual verification was done.
+Connection state transitions (connected/disconnected, `HealthPong` received) are logged to the
+console for the same reason — the PRD's Observability section is a Non-Goal here, so this is
+intentionally not structured logging, just enough to observe the pipeline until a real logging
+capability lands in a future change.
+
+### Gaps found while writing integration tests
+Two host-wiring gaps only became visible once the full pipeline was driven end-to-end:
+- `IpcWorkerConnection` had a `SubmitAsync` (request submission) but nothing to send
+  `CancelExecution` — the worker's `IExecutionDispatcher.TryCancel` (task 4.5) had no way to be
+  reached over IPC at all. Added `IpcWorkerConnection.RequestCancellationAsync`.
+- `SlackGateway.HandleCommandAsync` returned `Task` (no way to learn the request id it assigned),
+  so nothing outside the gateway could target a specific in-flight request for cancellation.
+  Changed it to return `Task<Guid?>` — backward compatible, since every existing caller already
+  discarded the result.
+
+`IpcWorkerConnection`'s health-ping interval and pong window were also made constructor-settable
+(defaulting to the original 5s/10s) so integration tests can observe a real round trip without a
+multi-second wait per test.
+
 ## Risks / Trade-offs
 
 - [Risk] Single global execution (per `broker-scheduling`) limits throughput once real executors
